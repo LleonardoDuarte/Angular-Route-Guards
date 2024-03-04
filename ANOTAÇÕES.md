@@ -715,4 +715,165 @@ import { of } from 'rxjs/internal/observable/of';
 
 # Route Guards (Proteção de rotas)
 
--
+- Proteção de rotas são basicamente validações que voce pode estar inserindo no seu codigo, como por exemplo uma validação de acesso de login de usuario, ou uma mensagem de confirmação caso a pessoa queira fechar a página
+
+- existem 4 tipos de proteção de rotas:
+
+  - CanActive: decide se uma rota (ou componente) pode ser ativada, como um sistema de login
+
+  - CanDeactive: decide se um usuario pode navegar para longe de uma rota (ou componente), como solicitar a confirmações de alterações pendentes.
+
+  - CanLoad: verifica se pode ou nao carregar o modulo especifico. Geralmente usado com lazy-load
+
+  - CanActiveChild: semelhante ao CanActive, mas se aplica a rotas aninhadas.
+
+# CanActive Example
+
+- Para inicio iremos criar 2 componentes chamados home e account na mesma pasta.
+
+- Para criar o guard iremos digitar ng g guard e colocar na pasta que queremos, nesse exemplo ficou dentro da mesma pasta onde estão os componentes porém é recomendado criar uma pasta core que irá conter todas as validações, depois de acionar o comando ele ira perguntar qual guard voce quer, iremos escolher o canActive.
+
+- Após isso iremos colocar nossa validação na rota em que queremos acionar a lógica da validação:
+  <!-- Passamos em forma de array devido a podermos colocar mais de uma validação -->
+
+  {
+  path: 'account',
+  component: AccountComponent,
+  canActivate: [CanActiveGuard],
+  },
+
+- Segue o processo de validação simples para teste:
+
+<!-- HTML: -->
+
+<a routerLink="account" [queryParams]="{ account: 'admin', password: '1234' }"
+
+> Account True</a
+
+<a routerLink="account" [queryParams]="{ account: 'adm', password: '12344' }"
+
+> Account False</a
+
+<!-- canActive -->
+
+    if (
+      route.queryParams['account'] === 'admin' &&
+      route.queryParams['password'] === '1234'
+    ) {
+      console.log(route);
+      console.log(state);
+      return true;
+    }
+
+    return false;
+
+}
+
+- Nesse exemplo o primeiro link irá passar pois os dados de login estão corretos.
+
+# CanDeactive Example
+
+- ng g guard shared/guards/canDeactive
+
+- Após criar ele iremos criar um routerlink para retornar a home dentro do nosso account component, no nosso canDeactive primeiro precisamos importar o componente que iremos usar nele e coloca-lo dentro do implements e depois declarar o componente:
+
+export class CanDeactiveGuard implements CanDeactivate<AccountComponent> {
+canDeactivate(
+component: AccountComponent,
+
+- No ts do nosso component criamos um método que exibe uma mensagem de confirmação se o usuario realmente deseja sair da página:
+
+  public exit() {
+  if (confirm('Você quer sair?')) {
+  return true;
+  }
+  return false;
+  }
+
+- Depois disso basta adicionar ele na rota e chamar a função de confirmação no return do arquivo guard:
+
+<!-- rota -->
+
+    {
+    path: 'account',
+    component: AccountComponent,
+    canActivate: [CanActiveGuard],
+    canDeactivate: [CanDeactiveGuard],
+    },
+
+      <!-- arquivo guard -->
+
+    return component.exit()
+
+- Apartir dai ele já ira solicitar a confirmação se realmente deseja retornar a página inicial, esse é um exemplo simples porém podemos criar validações de preenchimento de formulário,de algum texto especifico, etc...
+
+# canLoad
+
+- Como o canLoad trabala com carregamento tardio de um modulo primeiro iremos criar um modulo dentro de shared (ng g module core --routing (o --routing serve para ele ja criar o arquivo de rotas))
+
+- Depois disso criaremos uma rota lazy-loading filha no nosso app routing:
+
+  {
+  path: 'core',
+  loadChildren: () => import('./core/core.module').then((m) => m.CoreModule),
+  },
+
+- Agora iremos criar o componente dashboard no core paa podermos usar (ng g c core/pages/dashboard)
+
+- Depois criaremos a rota do mesmo:
+  { path: '', component: DashboardComponent, pathMatch: 'full' },
+
+- agora iremos criar o guard: ng g guard shared/guards/canLoad
+
+- apartir dai implementamos o canLoad na rota dentro do app routing e implementamos a lógica dentro do nosso canLoad:
+
+<!-- rota: -->
+
+{
+path: 'core',
+loadChildren: () => import('./core/core.module').then((m) => m.CoreModule),
+canLoad: [CanloadGuard],
+},
+
+<!-- Logica do canLoad -->
+
+     <!-- Aqui ele verifica se existe o core/leads se nao existir ele vai dar o sinal de alert -->
+    if (segments[1]?.path === 'leads') {
+      return true;
+    }
+    alert('Modulo nao foi carregado');
+
+}
+
+# INFORMAÇAO IMPORTANTE: APARTIR DA VERSÃO 16 canLoad foi descontinuado, agora usa-se o canMath
+
+# canActiveChild
+
+- faz o mesmo papel do canActive porem para rotas filhas:
+  <!-- HTML -->
+  <br />
+  <hr />
+  <a routerLink="core" [queryParams]="{ account: 'admin', password: '1234' }"
+    >Dashboard, Rota filha</a
+  >
+
+<br />
+<hr />
+<a
+  routerLink="core/leads"
+  [queryParams]="{ account: 'admin', password: '1234' }"
+  >Leads, Rota filha</a
+>
+
+<!-- canActiveChilGuards -->
+
+    if (
+      childRoute.queryParams['account'] === 'admin' &&
+      childRoute.queryParams['password'] === '1234'
+    ) {
+      return true;
+    }
+
+    return false;
+
+}
